@@ -1,0 +1,70 @@
+<?php
+
+use Drupal\node\NodeInterface;
+use Drupal\user\Entity\User;
+
+/**
+ * @file
+ * Contains duck_finder.module.
+ */
+
+use Drupal\Core\Routing\RouteMatchInterface;
+
+/**
+ * Implements hook_help().
+ */
+function duck_finder_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    // Main module help for the duck_finder module.
+    case 'help.page.duck_finder':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('React when ducks are found - link Events to Things
+      and assign points to the user.') . '</p>';
+      return $output;
+
+    default:
+  }
+}
+
+/**
+ * Implments hook_node_presave().
+ */
+function duck_finder_node_presave($node) {
+
+  $uid = $node->getOwnerId();
+  $tagid = $node->get('field_object_id')->getString();
+  $query = \Drupal::entityQuery('thing')
+    ->condition('field_identifier', $tagid);
+
+  $duck_ids = $query->execute();
+
+  if (!empty($duck_ids)) {
+    // Get the duck ID
+    $duckid = array_shift($duck_ids);
+    $duck = entity_load('thing', $duckid);
+    $node->field_duck->target_id = $duckid;
+
+    // Get the points too
+    $points = $duck->get('field_points')->value;
+
+    // Give these points to the user who created the handshake
+    $user = user_load($uid);
+    $user = \Drupal\user\Entity\User::load($uid);
+
+    $existing_points = $user->get('field_points')->value;
+    if (!empty($existing_points)) {
+      $new_points = $existing_points + $points;
+      $user->field_points->value = $new_points;
+    }
+    else {
+      $user->field_points->value = $points;
+    }
+
+    // Set the 'time' of this score
+    $timestamp = time();
+    $user->set('field_lastscore', $timestamp);
+    $user->save();
+  }
+
+}

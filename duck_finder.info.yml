@@ -1,0 +1,5 @@
+name: Duck Finder
+type: module
+description: React when ducks are found
+core: 8.x
+package: Ducks
